@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🌍 3D Interactive World Globe - Comprehensive Study Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <!-- Top Navigation Header -->
+    <header id="header">
+        <div class="logo">
+            <span class="logo-icon">🌍</span>
+            <span class="logo-text">GlobeStudy 3D</span>
+        </div>
+        
+        <div class="search-container">
+            <i class="fas fa-search search-icon"></i>
+            <input type="text" id="search-input" placeholder="Search countries, summits, straits, rivers, alliances, cities..." autocomplete="off">
+            <div id="search-results" class="search-results"></div>
+        </div>
+
+        <div class="header-actions">
+            <!-- Map Mode Selector -->
+            <div class="map-mode-select">
+                <button class="mode-btn active" data-mode="satellite" title="Satellite Physical Map">
+                    <i class="fas fa-satellite"></i> <span>Satellite</span>
+                </button>
+                <button class="mode-btn" data-mode="political" title="Political Boundaries Map">
+                    <i class="fas fa-map"></i> <span>Political</span>
+                </button>
+                <button class="mode-btn" data-mode="night" title="Night Lights Map">
+                    <i class="fas fa-moon"></i> <span>Night Lights</span>
+                </button>
+            </div>
+
+            <button class="header-btn" id="btn-quiz" title="Geography Quiz">
+                <i class="fas fa-graduation-cap"></i>
+                <span>Quiz</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 3D Globe WebGL Container -->
+    <div id="globe-container"></div>
+
+    <!-- Controls Panel (Left HUD) with Tabs -->
+    <div id="controls-panel">
+        <!-- HUD Category Navigation Tabs -->
+        <div class="hud-tabs">
+            <button class="hud-tab-btn active" data-tab="tab-alliances" title="Global Alliances"><i class="fas fa-shield-alt"></i></button>
+            <button class="hud-tab-btn" data-tab="tab-physical" title="Physical Geography"><i class="fas fa-mountain"></i></button>
+            <button class="hud-tab-btn" data-tab="tab-marine" title="Marine & Straits"><i class="fas fa-water"></i></button>
+            <button class="hud-tab-btn" data-tab="tab-trade" title="Trade & Cables"><i class="fas fa-network-wired"></i></button>
+            <button class="hud-tab-btn" data-tab="tab-controls" title="Camera & Display"><i class="fas fa-sliders-h"></i></button>
+        </div>
+
+        <!-- 1. Alliances & Geopolitics Section -->
+        <div class="hud-section active" id="tab-alliances">
+            <div class="control-group">
+                <label>Geopolitical Alliances</label>
+                <div class="alliance-grid">
+                    <button class="alliance-btn" data-alliance="nato"><i class="fas fa-shield-alt" style="color:#3b82f6"></i> NATO</button>
+                    <button class="alliance-btn" data-alliance="brics"><i class="fas fa-chart-line" style="color:#ef4444"></i> BRICS+</button>
+                    <button class="alliance-btn" data-alliance="eu"><i class="fas fa-star" style="color:#eab308"></i> EU</button>
+                    <button class="alliance-btn" data-alliance="opec"><i class="fas fa-oil-can" style="color:#10b981"></i> OPEC+</button>
+                    <button class="alliance-btn" data-alliance="g7"><i class="fas fa-landmark" style="color:#a855f7"></i> G7</button>
+                    <button class="alliance-btn" data-alliance="asean"><i class="fas fa-leaf" style="color:#f97316"></i> ASEAN</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Political Layers</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-borders" checked>
+                        <span><i class="fas fa-border-all"></i> Country Borders</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-capitals" checked>
+                        <span><i class="fas fa-city"></i> World Capitals</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Continent Highlight</label>
+                <div class="continent-btns">
+                    <button class="continent-btn active" data-continent="all">All</button>
+                    <button class="continent-btn" data-continent="Asia">Asia</button>
+                    <button class="continent-btn" data-continent="Europe">Europe</button>
+                    <button class="continent-btn" data-continent="Africa">Africa</button>
+                    <button class="continent-btn" data-continent="North America">N. America</button>
+                    <button class="continent-btn" data-continent="South America">S. America</button>
+                    <button class="continent-btn" data-continent="Oceania">Oceania</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Physical & Earth Science Section -->
+        <div class="hud-section" id="tab-physical">
+            <div class="control-group">
+                <label>Earth Science Layers</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-tectonic" checked>
+                        <span><i class="fas fa-fire-alt" style="color:#f87171"></i> Tectonic Plates & Ring of Fire</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-summits" checked>
+                        <span><i class="fas fa-mountain" style="color:#facc15"></i> Seven Summits & Mountains</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-rivers" checked>
+                        <span><i class="fas fa-water" style="color:#38bdf8"></i> World Major Rivers</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-landforms" checked>
+                        <span><i class="fas fa-sun" style="color:#fbbf24"></i> Deserts & Plateaus</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Marine & Oceans Section -->
+        <div class="hud-section" id="tab-marine">
+            <div class="control-group">
+                <label>Marine Features & Waterways</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-oceans" checked>
+                        <span><i class="fas fa-water" style="color:#67e8f9"></i> Oceans & Major Seas</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-straits" checked>
+                        <span><i class="fas fa-anchor" style="color:var(--accent-amber)"></i> Strategic Straits (Chokepoints)</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-marine-features" checked>
+                        <span><i class="fas fa-fish" style="color:#4ade80"></i> Trenches, Reefs & Gulfs</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Global Trade & Connectivity Section -->
+        <div class="hud-section" id="tab-trade">
+            <div class="control-group">
+                <label>Global Connectivity</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-trade-routes" checked>
+                        <span><i class="fas fa-route" style="color:var(--accent)"></i> 3D Maritime Trade Routes</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-cables" checked>
+                        <span><i class="fas fa-network-wired" style="color:#c084fc"></i> Subsea Internet Cables</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-megacities" checked>
+                        <span><i class="fas fa-building" style="color:#38bdf8"></i> 3D Megacities (Pop. Columns)</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-voyages">
+                        <span><i class="fas fa-compass" style="color:#f59e0b"></i> Historic Voyages (Magellan, Columbus)</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. Camera & Display Section -->
+        <div class="hud-section" id="tab-controls">
+            <div class="control-group">
+                <label>Camera & Rotation</label>
+                <div class="btn-group">
+                    <button class="ctrl-btn active" id="btn-auto-rotate" title="Toggle Auto Rotation">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="ctrl-btn" id="btn-zoom-in" title="Zoom In">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                    <button class="ctrl-btn" id="btn-zoom-out" title="Zoom Out">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <button class="ctrl-btn" id="btn-reset-view" title="Reset View">
+                        <i class="fas fa-crosshairs"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Display & Grids</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-atmosphere" checked>
+                        <span><i class="fas fa-globe"></i> Atmospheric Glow</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-grid">
+                        <span><i class="fas fa-th"></i> Graticule Grid Lines</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel (Right Drawer for Countries, Straits, Oceans, Summits, Alliances, etc.) -->
+    <div id="info-panel" class="hidden">
+        <button class="close-btn" id="close-info" title="Close"><i class="fas fa-times"></i></button>
+        <div class="info-header">
+            <span id="info-flag" class="info-flag"></span>
+            <div>
+                <h2 id="info-name"></h2>
+                <div id="info-sub" class="info-sub"></div>
+            </div>
+        </div>
+        
+        <!-- Standard Country Grid -->
+        <div class="info-grid" id="country-grid">
+            <div class="info-item">
+                <i class="fas fa-landmark"></i>
+                <div>
+                    <span class="info-label">Capital</span>
+                    <span class="info-value" id="info-capital"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-globe-americas"></i>
+                <div>
+                    <span class="info-label">Continent</span>
+                    <span class="info-value" id="info-continent"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-users"></i>
+                <div>
+                    <span class="info-label">Population</span>
+                    <span class="info-value" id="info-population"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-ruler-combined"></i>
+                <div>
+                    <span class="info-label">Area</span>
+                    <span class="info-value" id="info-area"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-coins"></i>
+                <div>
+                    <span class="info-label">Currency</span>
+                    <span class="info-value" id="info-currency"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-language"></i>
+                <div>
+                    <span class="info-label">Languages</span>
+                    <span class="info-value" id="info-languages"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maritime Strait Grid -->
+        <div class="info-grid hidden" id="strait-grid">
+            <div class="info-item" style="grid-column: span 2">
+                <i class="fas fa-water"></i>
+                <div>
+                    <span class="info-label">Connecting Waterway</span>
+                    <span class="info-value" id="strait-waterway"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-flag"></i>
+                <div>
+                    <span class="info-label">Bordering States</span>
+                    <span class="info-value" id="strait-countries"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-ship"></i>
+                <div>
+                    <span class="info-label">Shipping Traffic</span>
+                    <span class="info-value" id="strait-traffic"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summit / Mountain Grid -->
+        <div class="info-grid hidden" id="summit-grid">
+            <div class="info-item">
+                <i class="fas fa-mountain"></i>
+                <div>
+                    <span class="info-label">Elevation</span>
+                    <span class="info-value" id="summit-elev"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-layer-group"></i>
+                <div>
+                    <span class="info-label">Mountain Range</span>
+                    <span class="info-value" id="summit-range"></span>
+                </div>
+            </div>
+            <div class="info-item" style="grid-column: span 2">
+                <i class="fas fa-flag-checkered"></i>
+                <div>
+                    <span class="info-label">Historic First Ascent</span>
+                    <span class="info-value" id="summit-ascent"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alliance Grid -->
+        <div class="info-grid hidden" id="alliance-grid">
+            <div class="info-item">
+                <i class="fas fa-calendar-alt"></i>
+                <div>
+                    <span class="info-label">Founded</span>
+                    <span class="info-value" id="alliance-founded"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-users"></i>
+                <div>
+                    <span class="info-label">Members</span>
+                    <span class="info-value" id="alliance-members"></span>
+                </div>
+            </div>
+            <div class="info-item" style="grid-column: span 2">
+                <i class="fas fa-building"></i>
+                <div>
+                    <span class="info-label">Headquarters</span>
+                    <span class="info-value" id="alliance-hq"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-facts">
+            <h3 id="info-facts-title"><i class="fas fa-lightbulb"></i> Study Facts</h3>
+            <ul id="info-facts-list"></ul>
+        </div>
+    </div>
+
+    <!-- Geography Quiz Modal -->
+    <div id="quiz-modal" class="modal hidden">
+        <div class="modal-content">
+            <button class="close-btn" id="close-quiz"><i class="fas fa-times"></i></button>
+            <h2><i class="fas fa-graduation-cap"></i> Geography Study Challenge</h2>
+            
+            <div id="quiz-setup">
+                <p>Test your knowledge across continents, straits, summits, and capitals!</p>
+                <div class="quiz-options">
+                    <label>Select Category:</label>
+                    <select id="quiz-category">
+                        <option value="capitals">Capitals Challenge</option>
+                        <option value="straits">Strategic Straits & Chokepoints</option>
+                        <option value="summits">Seven Summits & Mountains</option>
+                        <option value="continents">Continents Challenge</option>
+                        <option value="flags">Flags Challenge</option>
+                    </select>
+                </div>
+                <button class="primary-btn" id="start-quiz">Start Quiz</button>
+            </div>
+
+            <div id="quiz-game" class="hidden">
+                <div class="quiz-progress">
+                    <span id="quiz-question-num">Question 1/5</span>
+                    <span id="quiz-score">Score: 0</span>
+                </div>
+                <div class="quiz-timer"><div class="timer-bar" id="timer-bar"></div></div>
+                <h3 id="quiz-question"></h3>
+                <div id="quiz-answers" class="quiz-answers"></div>
+            </div>
+
+            <div id="quiz-results" class="hidden">
+                <div class="results-display">
+                    <div class="results-score" id="results-score"></div>
+                    <p id="results-message"></p>
+                </div>
+                <button class="primary-btn" id="retry-quiz">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Coordinates Display -->
+    <div id="coordinates">
+        <span id="coord-lat">0.0° N</span>, <span id="coord-lon">0.0° E</span>
+    </div>
+
+    <!-- Scripts (All 100% Local!) -->
+    <script src="globe.gl.min.js"></script>
+    <script src="countries-geo.js"></script>
+    <script src="countries-data.js"></script>
+    <script src="maritime-data.js"></script>
+    <script src="alliances-data.js"></script>
+    <script src="geography-features-data.js"></script>
+    <script src="globe.js"></script>
+</body>
+</html>
