@@ -568,13 +568,30 @@ html, body {
 
 .quiz-options select {
     width: 100%;
-    padding: 10px;
-    background: rgba(255, 255, 255, 0.05);
+    padding: 12px 14px;
+    background: #0f172a;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
-    color: var(--text-primary);
+    color: #f8fafc;
     font-size: 14px;
+    font-weight: 500;
     outline: none;
+    color-scheme: dark;
+    cursor: pointer;
+    transition: var(--transition);
+    appearance: auto;
+}
+
+.quiz-options select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.quiz-options select option {
+    background: #0f172a;
+    color: #f8fafc;
+    padding: 10px;
+    font-size: 14px;
 }
 
 .primary-btn {
