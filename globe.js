@@ -60,14 +60,68 @@
         'Antarctica': 'rgba(148, 163, 184, 0.35)'
     };
 
+    // Helper: Resilient Country Data Lookup across all 177 sovereign entities
+    function findCountryData(featOrProps) {
+        if (!featOrProps || typeof COUNTRIES_DATA === 'undefined') return null;
+        const props = featOrProps.properties || featOrProps;
+        const admin = (props.ADMIN || props.NAME || props.name || '').trim();
+        const iso2 = (props.ISO_A2 || props.code || '').trim().toUpperCase();
+        const iso3 = (props.ISO_A3 || '').trim().toUpperCase();
+        const sov = (props.SOVEREIGNT || '').trim();
+
+        const adminLow = admin.toLowerCase();
+        const sovLow = sov.toLowerCase();
+
+        // 1. Exact name match
+        let match = COUNTRIES_DATA.find(c => c.name.toLowerCase() === adminLow);
+        if (match) return match;
+
+        // 2. ISO_A2 code match
+        if (iso2 && iso2 !== '-99') {
+            match = COUNTRIES_DATA.find(c => (c.code && c.code.toUpperCase() === iso2) || (c.iso2 && c.iso2.toUpperCase() === iso2));
+            if (match) return match;
+        }
+
+        // 3. ISO_A3 code match
+        if (iso3 && iso3 !== '-99') {
+            match = COUNTRIES_DATA.find(c => c.iso3 && c.iso3.toUpperCase() === iso3);
+            if (match) return match;
+        }
+
+        // 4. Match against aliases / alt names
+        match = COUNTRIES_DATA.find(c => {
+            if (!c.alt) return false;
+            return c.alt.some(a => a.toLowerCase() === adminLow || a.toLowerCase() === sovLow);
+        });
+        if (match) return match;
+
+        // 5. Match against Sovereignt name
+        if (sovLow) {
+            match = COUNTRIES_DATA.find(c => c.name.toLowerCase() === sovLow);
+            if (match) return match;
+        }
+
+        // 6. Substring name match
+        match = COUNTRIES_DATA.find(c => {
+            const cLow = c.name.toLowerCase();
+            return (cLow.length > 3 && (adminLow.includes(cLow) || cLow.includes(adminLow)));
+        });
+        if (match) return match;
+
+        // 7. Substring alias match
+        match = COUNTRIES_DATA.find(c => {
+            if (!c.alt) return false;
+            return c.alt.some(a => {
+                const aLow = a.toLowerCase();
+                return (aLow.length > 3 && (adminLow.includes(aLow) || aLow.includes(adminLow)));
+            });
+        });
+        return match || null;
+    }
+
     // Helper: Compute center lat/lng of GeoJSON feature
     function getFeatureCenter(feature) {
-        const name = (feature.properties.ADMIN || feature.properties.NAME || '').toLowerCase();
-        const match = COUNTRIES_DATA.find(c =>
-            c.name.toLowerCase() === name ||
-            (c.code && c.code === feature.properties.ISO_A2)
-        );
-        if (match) return { lat: match.lat, lng: match.lon, countryData: match };
+        const match = findCountryData(feature);
 
         let totalLat = 0, totalLng = 0, count = 0;
         function walkCoords(coords) {
@@ -82,10 +136,13 @@
         if (feature.geometry && feature.geometry.coordinates) {
             walkCoords(feature.geometry.coordinates);
         }
+        const calcLat = count > 0 ? totalLat / count : (match ? match.lat : 0);
+        const calcLng = count > 0 ? totalLng / count : (match ? match.lon : 0);
+
         return {
-            lat: count > 0 ? totalLat / count : 0,
-            lng: count > 0 ? totalLng / count : 0,
-            countryData: null
+            lat: calcLat,
+            lng: calcLng,
+            countryData: match
         };
     }
 
@@ -354,9 +411,9 @@
                 return state.mapMode === 'political' ? 'rgba(255, 255, 255, 0.45)' : 'rgba(56, 189, 248, 0.7)';
             })
             .polygonLabel(({ properties: d }) => {
-                const match = COUNTRIES_DATA.find(c => c.name.toLowerCase() === (d.ADMIN || d.NAME).toLowerCase());
+                const match = findCountryData(d);
                 const flag = match ? match.flag : '🌐';
-                const cap = match ? `<br/><small style="color:#94a3b8">Capital: ${match.capital}</small>` : '';
+                const cap = match && match.capital && match.capital !== 'N/A' ? `<br/><small style="color:#94a3b8">Capital: ${match.capital}</small>` : '';
                 return `
                     <div class="globe-tooltip">
                         <div style="font-size:15px; font-weight:700">${flag} ${d.ADMIN || d.NAME}</div>
@@ -511,13 +568,13 @@
 
         document.getElementById('info-flag').textContent = country.flag || '🌐';
         document.getElementById('info-name').textContent = country.name;
-        document.getElementById('info-sub').textContent = `${country.continent} • Capital: ${country.capital}`;
-        document.getElementById('info-capital').textContent = country.capital;
-        document.getElementById('info-continent').textContent = country.continent;
-        document.getElementById('info-population').textContent = country.population || 'N/A';
+        document.getElementById('info-sub').textContent = `${country.continent || 'World'} • Capital: ${country.capital || 'N/A'}`;
+        document.getElementById('info-capital').textContent = country.capital || 'N/A';
+        document.getElementById('info-continent').textContent = country.continent || 'N/A';
+        document.getElementById('info-population').textContent = country.population || country.pop || 'N/A';
         document.getElementById('info-area').textContent = country.area || 'N/A';
-        document.getElementById('info-currency').textContent = country.currency || 'N/A';
-        document.getElementById('info-languages').textContent = country.languages || 'N/A';
+        document.getElementById('info-currency').textContent = country.currency || country.curr || 'N/A';
+        document.getElementById('info-languages').textContent = country.languages || country.lang || 'N/A';
 
         const factsList = document.getElementById('info-facts-list');
         factsList.innerHTML = (country.facts || []).map(f => `<li>${f}</li>`).join('');
@@ -528,10 +585,14 @@
     function focusCountryFeature(feat) {
         const center = getFeatureCenter(feat);
         const name = feat.properties.ADMIN || feat.properties.NAME;
-        const match = center.countryData || COUNTRIES_DATA.find(c => c.name.toLowerCase() === name.toLowerCase());
+        const match = center.countryData || findCountryData(feat);
 
         if (match) {
-            focusCountry(match);
+            focusCountry({
+                ...match,
+                lat: match.lat || center.lat,
+                lon: match.lon || center.lng
+            });
         } else {
             focusCountry({
                 name: name,
@@ -1052,7 +1113,12 @@
 
             // Countries
             if (typeof COUNTRIES_DATA !== 'undefined') {
-                COUNTRIES_DATA.filter(c => c.name.toLowerCase().includes(q) || c.capital.toLowerCase().includes(q))
+                COUNTRIES_DATA.filter(c => 
+                    c.name.toLowerCase().includes(q) || 
+                    (c.capital && c.capital.toLowerCase().includes(q)) ||
+                    (c.currency && c.currency.toLowerCase().includes(q)) ||
+                    (c.alt && c.alt.some(a => a.toLowerCase().includes(q)))
+                )
                     .slice(0, 6)
                     .forEach(c => results.push({ type: 'country', name: c.name, sub: `Capital: ${c.capital} · ${c.continent}`, icon: c.flag || '🌐', data: c }));
             }
