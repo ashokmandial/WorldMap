@@ -18,7 +18,7 @@
         
         <div class="search-container">
             <i class="fas fa-search search-icon"></i>
-            <input type="text" id="search-input" placeholder="Search countries, summits, straits, rivers, alliances, cities..." autocomplete="off">
+            <input type="text" id="search-input" placeholder="Search countries, cities, summits, straits, rivers, alliances..." autocomplete="off">
             <div id="search-results" class="search-results"></div>
         </div>
 
@@ -50,15 +50,37 @@
     <div id="controls-panel">
         <!-- HUD Category Navigation Tabs -->
         <div class="hud-tabs">
-            <button class="hud-tab-btn active" data-tab="tab-alliances" title="Global Alliances"><i class="fas fa-shield-alt"></i></button>
+            <button class="hud-tab-btn active" data-tab="tab-alliances" title="Political & Alliances"><i class="fas fa-shield-alt"></i></button>
             <button class="hud-tab-btn" data-tab="tab-physical" title="Physical Geography"><i class="fas fa-mountain"></i></button>
             <button class="hud-tab-btn" data-tab="tab-marine" title="Marine & Straits"><i class="fas fa-water"></i></button>
             <button class="hud-tab-btn" data-tab="tab-trade" title="Trade & Cables"><i class="fas fa-network-wired"></i></button>
             <button class="hud-tab-btn" data-tab="tab-controls" title="Camera & Display"><i class="fas fa-sliders-h"></i></button>
         </div>
 
-        <!-- 1. Alliances & Geopolitics Section -->
+        <!-- 1. Political, Labels & Alliances Section -->
         <div class="hud-section active" id="tab-alliances">
+            <div class="control-group">
+                <label>Geographic & City Labels</label>
+                <div class="toggle-group">
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-country-names" checked>
+                        <span><i class="fas fa-globe" style="color:var(--text-primary)"></i> Country Names (Always Visible)</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-cities" checked>
+                        <span><i class="fas fa-city" style="color:var(--accent)"></i> Major Cities (Dynamic Zoom)</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-borders" checked>
+                        <span><i class="fas fa-border-all"></i> Country Borders</span>
+                    </label>
+                    <label class="toggle-label">
+                        <input type="checkbox" id="toggle-capitals" checked>
+                        <span><i class="fas fa-landmark" style="color:var(--accent-amber)"></i> World Capitals</span>
+                    </label>
+                </div>
+            </div>
+
             <div class="control-group">
                 <label>Geopolitical Alliances</label>
                 <div class="alliance-grid">
@@ -68,20 +90,6 @@
                     <button class="alliance-btn" data-alliance="opec"><i class="fas fa-oil-can" style="color:#10b981"></i> OPEC+</button>
                     <button class="alliance-btn" data-alliance="g7"><i class="fas fa-landmark" style="color:#a855f7"></i> G7</button>
                     <button class="alliance-btn" data-alliance="asean"><i class="fas fa-leaf" style="color:#f97316"></i> ASEAN</button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <label>Political Layers</label>
-                <div class="toggle-group">
-                    <label class="toggle-label">
-                        <input type="checkbox" id="toggle-borders" checked>
-                        <span><i class="fas fa-border-all"></i> Country Borders</span>
-                    </label>
-                    <label class="toggle-label">
-                        <input type="checkbox" id="toggle-capitals" checked>
-                        <span><i class="fas fa-city"></i> World Capitals</span>
-                    </label>
                 </div>
             </div>
 
@@ -203,10 +211,14 @@
                     </label>
                 </div>
             </div>
+            
+            <div class="zoom-status" id="zoom-status">
+                <small><i class="fas fa-search-plus"></i> Zoom level: <span id="zoom-level-text">Global View</span></small>
+            </div>
         </div>
     </div>
 
-    <!-- Info Panel (Right Drawer for Countries, Straits, Oceans, Summits, Alliances, etc.) -->
+    <!-- Info Panel (Right Drawer for Countries, Cities, Straits, Summits, Alliances, etc.) -->
     <div id="info-panel" class="hidden">
         <button class="close-btn" id="close-info" title="Close"><i class="fas fa-times"></i></button>
         <div class="info-header">
@@ -217,7 +229,7 @@
             </div>
         </div>
         
-        <!-- Standard Country Grid -->
+        <!-- 1. Standard Country Grid -->
         <div class="info-grid" id="country-grid">
             <div class="info-item">
                 <i class="fas fa-landmark"></i>
@@ -263,7 +275,32 @@
             </div>
         </div>
 
-        <!-- Maritime Strait Grid -->
+        <!-- 2. Major City Grid -->
+        <div class="info-grid hidden" id="city-grid">
+            <div class="info-item">
+                <i class="fas fa-users"></i>
+                <div>
+                    <span class="info-label">Metro Population</span>
+                    <span class="info-value" id="city-pop"></span>
+                </div>
+            </div>
+            <div class="info-item">
+                <i class="fas fa-flag"></i>
+                <div>
+                    <span class="info-label">Country</span>
+                    <span class="info-value" id="city-country"></span>
+                </div>
+            </div>
+            <div class="info-item" style="grid-column: span 2">
+                <i class="fas fa-city"></i>
+                <div>
+                    <span class="info-label">Significance / Profile</span>
+                    <span class="info-value" id="city-desc"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. Maritime Strait Grid -->
         <div class="info-grid hidden" id="strait-grid">
             <div class="info-item" style="grid-column: span 2">
                 <i class="fas fa-water"></i>
@@ -288,7 +325,7 @@
             </div>
         </div>
 
-        <!-- Summit / Mountain Grid -->
+        <!-- 4. Summit / Mountain Grid -->
         <div class="info-grid hidden" id="summit-grid">
             <div class="info-item">
                 <i class="fas fa-mountain"></i>
@@ -313,7 +350,7 @@
             </div>
         </div>
 
-        <!-- Alliance Grid -->
+        <!-- 5. Alliance Grid -->
         <div class="info-grid hidden" id="alliance-grid">
             <div class="info-item">
                 <i class="fas fa-calendar-alt"></i>
@@ -351,11 +388,12 @@
             <h2><i class="fas fa-graduation-cap"></i> Geography Study Challenge</h2>
             
             <div id="quiz-setup">
-                <p>Test your knowledge across continents, straits, summits, and capitals!</p>
+                <p>Test your knowledge across world capitals, cities, straits, and summits!</p>
                 <div class="quiz-options">
                     <label>Select Category:</label>
                     <select id="quiz-category">
                         <option value="capitals">Capitals Challenge</option>
+                        <option value="cities">Major Cities Challenge</option>
                         <option value="straits">Strategic Straits & Chokepoints</option>
                         <option value="summits">Seven Summits & Mountains</option>
                         <option value="continents">Continents Challenge</option>
@@ -394,6 +432,7 @@
     <script src="globe.gl.min.js"></script>
     <script src="countries-geo.js"></script>
     <script src="countries-data.js"></script>
+    <script src="cities-data.js"></script>
     <script src="maritime-data.js"></script>
     <script src="alliances-data.js"></script>
     <script src="geography-features-data.js"></script>

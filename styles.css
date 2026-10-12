@@ -702,6 +702,20 @@ html, body {
     z-index: 30;
 }
 
+.zoom-status {
+    margin-top: 14px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-muted);
+    font-size: 11px;
+}
+
+.zoom-status span {
+    font-weight: 600;
+}
+
 .hidden {
     display: none !important;
 }

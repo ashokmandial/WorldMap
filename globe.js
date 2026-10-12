@@ -2,6 +2,8 @@
  * GlobeStudy 3D - Ultimate World Geography Platform
  * Integrated Layers:
  * - Real GeoJSON Country Borders & NASA Blue Marble Textures
+ * - Always-Visible Country Names (All 177 Sovereign Nations)
+ * - Major World Cities on Zoom (Dynamic Level of Detail: Tier 1 & Tier 2)
  * - Geopolitical Alliances (NATO, BRICS, EU, OPEC, G7, ASEAN)
  * - Tectonic Plates & Pacific Ring of Fire
  * - Seven Summits & Major Mountain Ranges
@@ -25,8 +27,11 @@
         mapMode: 'satellite', // 'satellite' | 'political' | 'night'
         activeAlliance: null, // 'nato' | 'brics' | 'eu' | 'opec' | 'g7' | 'asean' | null
         activeContinent: 'all',
+        currentZoomTier: 'far', // 'far' (>1.7) | 'mid' (1.05-1.7) | 'close' (<=1.05)
 
-        // Toggles
+        // Layer Toggles
+        showCountryNames: true,
+        showCities: true,
         showBorders: true,
         showCapitals: true,
         showTectonic: true,
@@ -111,11 +116,96 @@
         return arcs;
     }
 
-    // Helper: Build Combined Labels Data (Oceans + Straits + Summits + Landforms + Marine + Capitals)
+    // Determine current zoom tier based on camera altitude
+    function getZoomTier(altitude) {
+        if (altitude <= 1.05) return 'close';
+        if (altitude <= 1.7) return 'mid';
+        return 'far';
+    }
+
+    // Update zoom indicator in HUD
+    function updateZoomIndicator(tier) {
+        const txt = document.getElementById('zoom-level-text');
+        if (!txt) return;
+        if (tier === 'far') {
+            txt.innerHTML = '<span style="color:#94a3b8">Global View</span> (Zoom in for cities)';
+        } else if (tier === 'mid') {
+            txt.innerHTML = '<span style="color:#38bdf8">Continental View</span> (Megacities active)';
+        } else {
+            txt.innerHTML = '<span style="color:#4ade80">Regional View</span> (Full city details active)';
+        }
+    }
+
+    // Helper: Build Combined Labels Data (Dynamic Country Names + Cities on Zoom)
     function buildLabelsData() {
         const list = [];
+        const zoomTier = state.currentZoomTier;
 
-        // 1. Oceans & Seas
+        // 1. ALWAYS-VISIBLE COUNTRY NAMES (All 177 Sovereign Nations)
+        if (state.showCountryNames && typeof COUNTRIES_GEOJSON !== 'undefined' && COUNTRIES_GEOJSON.features) {
+            COUNTRIES_GEOJSON.features.forEach(feat => {
+                const name = feat.properties.ADMIN || feat.properties.NAME;
+                const center = getFeatureCenter(feat);
+                if (!center.lat && !center.lng) return;
+
+                // Continent filter
+                if (state.activeContinent !== 'all' && feat.properties.CONTINENT !== state.activeContinent) {
+                    return;
+                }
+
+                // Sizing based on country population / area
+                const pop = feat.properties.POP_EST || 0;
+                let size = 0.88;
+                let color = '#f8fafc';
+
+                if (pop > 80000000 || ['Russia', 'Canada', 'United States', 'China', 'Brazil', 'Australia', 'India'].includes(name)) {
+                    size = 1.25;
+                    color = '#ffffff';
+                } else if (pop > 25000000) {
+                    size = 1.02;
+                    color = '#f1f5f9';
+                }
+
+                list.push({
+                    name: name,
+                    isCountryName: true,
+                    lat: center.lat,
+                    lng: center.lng,
+                    size: size,
+                    color: color,
+                    dotRadius: 0, // No dot, pure prominent text
+                    altitude: 0.012,
+                    data: feat
+                });
+            });
+        }
+
+        // 2. MAJOR WORLD CITIES ON ZOOM (Dynamic LOD)
+        if (state.showCities && typeof CITIES_DATA !== 'undefined') {
+            CITIES_DATA.forEach(city => {
+                // Tier 1 shows at 'mid' and 'close'
+                // Tier 2 shows at 'close' only
+                let visible = false;
+                if (zoomTier === 'mid' && city.tier === 1) visible = true;
+                if (zoomTier === 'close') visible = true;
+
+                if (visible) {
+                    list.push({
+                        name: '• ' + city.name,
+                        isCity: true,
+                        lat: city.lat,
+                        lng: city.lon,
+                        size: city.tier === 1 ? 0.92 : 0.8,
+                        color: city.isCapital ? '#fde047' : '#38bdf8', // Yellow for capitals, cyan for major cities
+                        dotRadius: 0.26,
+                        altitude: 0.015,
+                        data: city
+                    });
+                }
+            });
+        }
+
+        // 3. Oceans & Major Seas
         if (state.showOceans && typeof OCEANS_DATA !== 'undefined') {
             OCEANS_DATA.forEach(o => {
                 list.push({
@@ -126,12 +216,13 @@
                     size: o.size || 1.4,
                     color: o.color || '#67e8f9',
                     dotRadius: 0,
+                    altitude: 0.01,
                     data: o
                 });
             });
         }
 
-        // 2. Strategic Straits & Chokepoints
+        // 4. Strategic Straits & Chokepoints
         if (state.showStraits && typeof STRAITS_DATA !== 'undefined') {
             STRAITS_DATA.forEach(s => {
                 list.push({
@@ -142,12 +233,13 @@
                     size: 1.05,
                     color: '#facc15',
                     dotRadius: 0.38,
+                    altitude: 0.014,
                     data: s
                 });
             });
         }
 
-        // 3. Seven Summits & Mountains
+        // 5. Seven Summits & Mountains
         if (state.showSummits && typeof SUMMITS_DATA !== 'undefined') {
             SUMMITS_DATA.forEach(m => {
                 list.push({
@@ -155,15 +247,16 @@
                     isSummit: true,
                     lat: m.lat,
                     lng: m.lon,
-                    size: 1.0,
+                    size: 0.95,
                     color: '#fef08a',
                     dotRadius: 0.35,
+                    altitude: 0.015,
                     data: m
                 });
             });
         }
 
-        // 4. Landforms: Deserts & Plateaus
+        // 6. Landforms: Deserts & Plateaus
         if (state.showLandforms && typeof LANDFORMS_DATA !== 'undefined') {
             LANDFORMS_DATA.forEach(l => {
                 list.push({
@@ -171,15 +264,16 @@
                     isLandform: true,
                     lat: l.lat,
                     lng: l.lon,
-                    size: l.size || 1.2,
+                    size: l.size || 1.15,
                     color: l.color || '#fbbf24',
                     dotRadius: 0,
+                    altitude: 0.012,
                     data: l
                 });
             });
         }
 
-        // 5. Marine Features: Trenches, Reefs, Gulfs
+        // 7. Marine Features: Trenches, Reefs, Gulfs
         if (state.showMarineFeatures && typeof MARINE_FEATURES_DATA !== 'undefined') {
             MARINE_FEATURES_DATA.forEach(mf => {
                 list.push({
@@ -187,26 +281,11 @@
                     isMarineFeature: true,
                     lat: mf.lat,
                     lng: mf.lon,
-                    size: 1.0,
+                    size: 0.95,
                     color: '#4ade80',
-                    dotRadius: 0.3,
-                    data: mf
-                });
-            });
-        }
-
-        // 6. World Capitals
-        if (state.showCapitals && typeof COUNTRIES_DATA !== 'undefined') {
-            COUNTRIES_DATA.forEach(c => {
-                list.push({
-                    name: `${c.flag} ${c.name}`,
-                    isCapital: true,
-                    lat: c.lat,
-                    lng: c.lon,
-                    size: 0.88,
-                    color: '#f8fafc',
                     dotRadius: 0.28,
-                    data: c
+                    altitude: 0.012,
+                    data: mf
                 });
             });
         }
@@ -231,7 +310,7 @@
             .polygonAltitude(feat => feat === state.hoveredFeature ? 0.038 : 0.006)
             .polygonCapColor(feat => {
                 if (feat === state.hoveredFeature) {
-                    return 'rgba(56, 189, 248, 0.7)'; // Glowing cyan on hover
+                    return 'rgba(56, 189, 248, 0.7)';
                 }
 
                 // Alliance Highlighting Mode
@@ -242,7 +321,7 @@
                     if (isMember) {
                         return alliance.color;
                     }
-                    return 'rgba(15, 23, 42, 0.75)'; // Dim non-members
+                    return 'rgba(15, 23, 42, 0.75)';
                 }
 
                 // Continent Filter
@@ -355,12 +434,12 @@
             .ringsData(state.showStraits ? STRAITS_DATA : [])
             .ringLat(d => d.lat)
             .ringLng(d => d.lon)
-            .ringColor(() => '#fbbf24')
+            .ringColor(() => '#facc15')
             .ringMaxRadius(3.5)
             .ringPropagationSpeed(2.2)
             .ringRepeatPeriod(1200)
 
-            // 6. Combined Typography Labels (Oceans, Straits, Summits, Landforms, Marine, Capitals)
+            // 6. Permanent Labels (Countries Always Visible + Cities on Zoom)
             .labelsData(buildLabelsData())
             .labelLat(d => d.lat)
             .labelLng(d => d.lng)
@@ -368,14 +447,16 @@
             .labelSize(d => d.size)
             .labelDotRadius(d => d.dotRadius)
             .labelColor(d => d.color)
+            .labelAltitude(d => d.altitude || 0.012)
             .labelResolution(2)
             .onLabelClick(d => {
-                if (d.isStrait) focusStrait(d.data);
+                if (d.isCountryName) focusCountryFeature(d.data);
+                else if (d.isCity) focusCity(d.data);
+                else if (d.isStrait) focusStrait(d.data);
                 else if (d.isSummit) focusSummit(d.data);
                 else if (d.isOcean) focusOcean(d.data);
                 else if (d.isLandform) focusLandform(d.data);
                 else if (d.isMarineFeature) focusMarineFeature(d.data);
-                else if (d.isCapital) focusCountry(d.data);
             });
 
         // Controls setup
@@ -386,15 +467,31 @@
         state.world.controls().minDistance = 140;
         state.world.controls().maxDistance = 600;
 
+        // Dynamic Zoom-dependent Labels Listener
+        function checkCameraZoom() {
+            if (!state.world) return;
+            const pov = state.world.pointOfView();
+            const tier = getZoomTier(pov.altitude);
+            if (tier !== state.currentZoomTier) {
+                state.currentZoomTier = tier;
+                updateZoomIndicator(tier);
+                state.world.labelsData(buildLabelsData());
+            }
+        }
+
+        state.world.controls().addEventListener('change', checkCameraZoom);
+        setInterval(checkCameraZoom, 250); // Polling safeguard during smooth transitions
+
         // Initial view
         state.world.pointOfView({ lat: 20, lng: 0, altitude: 2.2 }, 1000);
+        updateZoomIndicator('far');
 
         setupCoordinatesTracker();
     }
 
     // Hide all info card grids helper
     function hideAllGrids() {
-        ['country-grid', 'strait-grid', 'summit-grid', 'alliance-grid'].forEach(id => {
+        ['country-grid', 'city-grid', 'strait-grid', 'summit-grid', 'alliance-grid'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
@@ -412,7 +509,7 @@
         document.getElementById('country-grid').classList.remove('hidden');
         document.getElementById('info-facts-title').innerHTML = '<i class="fas fa-lightbulb"></i> Study Facts';
 
-        document.getElementById('info-flag').textContent = country.flag;
+        document.getElementById('info-flag').textContent = country.flag || '🌐';
         document.getElementById('info-name').textContent = country.name;
         document.getElementById('info-sub').textContent = `${country.continent} • Capital: ${country.capital}`;
         document.getElementById('info-capital').textContent = country.capital;
@@ -456,7 +553,39 @@
         }
     }
 
-    // 2. Focus Strategic Strait
+    // 2. Focus Major City
+    function focusCity(city) {
+        state.selectedEntity = city;
+        state.world.controls().autoRotate = false;
+        document.getElementById('btn-auto-rotate').classList.remove('active');
+
+        // Zoom right into the city!
+        state.world.pointOfView({ lat: city.lat, lng: city.lon, altitude: 0.8 }, 1400);
+
+        hideAllGrids();
+        document.getElementById('city-grid').classList.remove('hidden');
+        document.getElementById('info-facts-title').innerHTML = '<i class="fas fa-city" style="color:#38bdf8"></i> City Profile';
+
+        document.getElementById('info-flag').textContent = '🏙️';
+        document.getElementById('info-name').textContent = city.name;
+        document.getElementById('info-sub').textContent = `${city.country} • Major World Metropolis`;
+
+        document.getElementById('city-pop').textContent = city.pop || 'N/A';
+        document.getElementById('city-country').textContent = city.country || 'N/A';
+        document.getElementById('city-desc').textContent = city.desc || (city.isCapital ? 'National Capital' : 'Major Economic & Commercial Hub');
+
+        const factsList = document.getElementById('info-facts-list');
+        factsList.innerHTML = `
+            <li><b>Metropolitan Population:</b> ${city.pop}</li>
+            <li><b>Coordinates:</b> ${city.lat.toFixed(2)}° N, ${city.lon.toFixed(2)}° E</li>
+            <li><b>Significance:</b> ${city.desc || 'Major urban center and regional economic hub'}</li>
+            ${city.isCapital ? '<li><b>Administrative Status:</b> Official National Capital</li>' : ''}
+        `;
+
+        document.getElementById('info-panel').classList.remove('hidden');
+    }
+
+    // 3. Focus Strategic Strait
     function focusStrait(strait) {
         state.selectedEntity = strait;
         state.world.controls().autoRotate = false;
@@ -482,7 +611,7 @@
         document.getElementById('info-panel').classList.remove('hidden');
     }
 
-    // 3. Focus Seven Summits / Mountain Peak
+    // 4. Focus Seven Summits / Mountain Peak
     function focusSummit(summit) {
         state.selectedEntity = summit;
         state.world.controls().autoRotate = false;
@@ -508,19 +637,17 @@
         document.getElementById('info-panel').classList.remove('hidden');
     }
 
-    // 4. Focus Geopolitical Alliance
+    // 5. Focus Geopolitical Alliance
     function focusAlliance(key) {
         const alliance = ALLIANCES_DATA[key];
         if (!alliance) return;
 
         state.activeAlliance = (state.activeAlliance === key) ? null : key;
 
-        // Toggle buttons
         document.querySelectorAll('.alliance-btn').forEach(btn => {
             btn.classList.toggle('active', btn.dataset.alliance === state.activeAlliance);
         });
 
-        // Trigger color update on polygons
         state.world.polygonCapColor(state.world.polygonCapColor());
         state.world.polygonStrokeColor(state.world.polygonStrokeColor());
 
@@ -550,7 +677,7 @@
         }
     }
 
-    // 5. Focus Landform (Desert / Plateau)
+    // 6. Focus Landform (Desert / Plateau)
     function focusLandform(lf) {
         state.selectedEntity = lf;
         state.world.controls().autoRotate = false;
@@ -571,7 +698,7 @@
         document.getElementById('info-panel').classList.remove('hidden');
     }
 
-    // 6. Focus Marine Feature (Trench / Reef / Gulf)
+    // 7. Focus Marine Feature (Trench / Reef / Gulf)
     function focusMarineFeature(mf) {
         state.selectedEntity = mf;
         state.world.controls().autoRotate = false;
@@ -592,7 +719,7 @@
         document.getElementById('info-panel').classList.remove('hidden');
     }
 
-    // 7. Focus Ocean
+    // 8. Focus Ocean
     function focusOcean(ocean) {
         state.selectedEntity = ocean;
         state.world.controls().autoRotate = false;
@@ -609,31 +736,6 @@
 
         const factsList = document.getElementById('info-facts-list');
         factsList.innerHTML = `<li>${ocean.description}</li>`;
-
-        document.getElementById('info-panel').classList.remove('hidden');
-    }
-
-    // 8. Focus 3D Megacity
-    function focusCity(city) {
-        state.selectedEntity = city;
-        state.world.controls().autoRotate = false;
-        document.getElementById('btn-auto-rotate').classList.remove('active');
-
-        state.world.pointOfView({ lat: city.lat, lng: city.lon, altitude: 1.2 }, 1400);
-
-        hideAllGrids();
-        document.getElementById('info-facts-title').innerHTML = '<i class="fas fa-building" style="color:#38bdf8"></i> Megacity Profile';
-
-        document.getElementById('info-flag').textContent = '🏙️';
-        document.getElementById('info-name').textContent = `${city.name}, ${city.country}`;
-        document.getElementById('info-sub').textContent = `Metropolitan Population: ${city.pop} • ${city.rank}`;
-
-        const factsList = document.getElementById('info-facts-list');
-        factsList.innerHTML = `
-            <li><b>Global Rank:</b> ${city.rank}</li>
-            <li><b>Metropolitan Population:</b> ${city.pop}</li>
-            <li><b>Coordinates:</b> ${city.lat.toFixed(2)}° N, ${city.lon.toFixed(2)}° E</li>
-        `;
 
         document.getElementById('info-panel').classList.remove('hidden');
     }
@@ -760,12 +862,12 @@
         // Zoom In & Out
         document.getElementById('btn-zoom-in').addEventListener('click', () => {
             const pov = state.world.pointOfView();
-            state.world.pointOfView({ altitude: Math.max(0.4, pov.altitude * 0.75) }, 400);
+            state.world.pointOfView({ altitude: Math.max(0.4, pov.altitude * 0.72) }, 400);
         });
 
         document.getElementById('btn-zoom-out').addEventListener('click', () => {
             const pov = state.world.pointOfView();
-            state.world.pointOfView({ altitude: Math.min(4.5, pov.altitude * 1.3) }, 400);
+            state.world.pointOfView({ altitude: Math.min(4.5, pov.altitude * 1.35) }, 400);
         });
 
         // Reset View
@@ -779,6 +881,16 @@
         });
 
         // Layer Toggles
+        document.getElementById('toggle-country-names').addEventListener('change', e => {
+            state.showCountryNames = e.target.checked;
+            state.world.labelsData(buildLabelsData());
+        });
+
+        document.getElementById('toggle-cities').addEventListener('change', e => {
+            state.showCities = e.target.checked;
+            state.world.labelsData(buildLabelsData());
+        });
+
         document.getElementById('toggle-borders').addEventListener('change', e => {
             state.showBorders = e.target.checked;
             state.world.polygonStrokeColor(state.world.polygonStrokeColor());
@@ -861,6 +973,7 @@
                 btn.classList.add('active');
                 state.activeContinent = btn.dataset.continent;
                 state.world.polygonCapColor(state.world.polygonCapColor());
+                state.world.labelsData(buildLabelsData());
 
                 const continentCenters = {
                     'Asia': { lat: 34, lng: 100, altitude: 1.8 },
@@ -900,6 +1013,13 @@
                 }
             });
 
+            // Cities
+            if (typeof CITIES_DATA !== 'undefined') {
+                CITIES_DATA.filter(c => c.name.toLowerCase().includes(q) || c.country.toLowerCase().includes(q))
+                    .slice(0, 5)
+                    .forEach(c => results.push({ type: 'city', name: c.name, sub: `City in ${c.country} · Pop: ${c.pop}`, icon: '🏙️', data: c }));
+            }
+
             // Summits
             if (typeof SUMMITS_DATA !== 'undefined') {
                 SUMMITS_DATA.filter(s => s.name.toLowerCase().includes(q) || s.range.toLowerCase().includes(q))
@@ -924,12 +1044,6 @@
                     .forEach(l => results.push({ type: 'landform', name: l.name, sub: `${l.type} · ${l.area}`, icon: '🏜️', data: l }));
             }
 
-            // Megacities
-            if (typeof MEGACITIES_DATA !== 'undefined') {
-                MEGACITIES_DATA.filter(c => c.name.toLowerCase().includes(q))
-                    .forEach(c => results.push({ type: 'city', name: c.name, sub: `Pop: ${c.pop} · ${c.country}`, icon: '🏙️', data: c }));
-            }
-
             // Oceans
             if (typeof OCEANS_DATA !== 'undefined') {
                 OCEANS_DATA.filter(o => o.name.toLowerCase().includes(q))
@@ -939,7 +1053,8 @@
             // Countries
             if (typeof COUNTRIES_DATA !== 'undefined') {
                 COUNTRIES_DATA.filter(c => c.name.toLowerCase().includes(q) || c.capital.toLowerCase().includes(q))
-                    .forEach(c => results.push({ type: 'country', name: c.name, sub: `Capital: ${c.capital} · ${c.continent}`, icon: c.flag, data: c }));
+                    .slice(0, 6)
+                    .forEach(c => results.push({ type: 'country', name: c.name, sub: `Capital: ${c.capital} · ${c.continent}`, icon: c.flag || '🌐', data: c }));
             }
 
             if (results.length === 0) { searchResults.classList.remove('active'); return; }
@@ -962,11 +1077,11 @@
                     const item = results.find(r => r.name === name);
                     if (item) {
                         if (type === 'country') focusCountry(item.data);
+                        else if (type === 'city') focusCity(item.data);
                         else if (type === 'strait') focusStrait(item.data);
                         else if (type === 'summit') focusSummit(item.data);
                         else if (type === 'river') focusPathFeature(item.data);
                         else if (type === 'landform') focusLandform(item.data);
-                        else if (type === 'city') focusCity(item.data);
                         else if (type === 'ocean') focusOcean(item.data);
                         else if (type === 'alliance') focusAlliance(item.key);
                     }
@@ -1006,7 +1121,18 @@
         document.getElementById('start-quiz').addEventListener('click', () => {
             const category = document.getElementById('quiz-category').value;
 
-            if (category === 'straits') {
+            if (category === 'cities' && typeof CITIES_DATA !== 'undefined') {
+                const shuffled = [...CITIES_DATA].sort(() => Math.random() - 0.5).slice(0, 5);
+                questions = shuffled.map(city => {
+                    const others = CITIES_DATA.filter(x => x.country !== city.country).sort(() => Math.random() - 0.5);
+                    return {
+                        qText: `Which country is the city of "${city.name}" located in?`,
+                        correct: city.country,
+                        opts: [city.country, others[0].country, others[1].country, others[2].country].sort(() => Math.random() - 0.5),
+                        target: () => focusCity(city)
+                    };
+                });
+            } else if (category === 'straits') {
                 const shuffled = [...STRAITS_DATA].sort(() => Math.random() - 0.5).slice(0, 5);
                 questions = shuffled.map(s => {
                     const others = STRAITS_DATA.filter(x => x.name !== s.name).sort(() => Math.random() - 0.5);
@@ -1034,11 +1160,11 @@
                     const others = COUNTRIES_DATA.filter(x => x.name !== c.name).sort(() => Math.random() - 0.5);
                     let qText, correct, opts;
                     if (category === 'capitals') {
-                        qText = `What is the capital city of ${c.flag} ${c.name}?`;
+                        qText = `What is the capital city of ${c.flag || '🌐'} ${c.name}?`;
                         correct = c.capital;
                         opts = [c.capital, others[0].capital, others[1].capital, others[2].capital];
                     } else if (category === 'continents') {
-                        qText = `Which continent is ${c.flag} ${c.name} located in?`;
+                        qText = `Which continent is ${c.flag || '🌐'} ${c.name} located in?`;
                         correct = c.continent;
                         opts = ["Asia", "Europe", "Africa", "South America", "North America", "Oceania"].sort(() => Math.random() - 0.5).slice(0, 4);
                         if (!opts.includes(c.continent)) opts[0] = c.continent;
@@ -1073,8 +1199,8 @@
                 document.getElementById('quiz-results').classList.remove('hidden');
                 document.getElementById('results-score').textContent = `${score}/${questions.length}`;
                 document.getElementById('results-message').textContent = score >= 4
-                    ? "🌟 Master of Geography! You know the Earth inside out!"
-                    : "📚 Good effort! Keep exploring summits, straits, and countries!";
+                    ? "🌟 Master of Geography! You know the Earth's countries, cities, and borders inside out!"
+                    : "📚 Good effort! Keep exploring cities, straits, and summits on the globe!";
                 return;
             }
 
